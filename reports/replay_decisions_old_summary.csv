@@ -1,0 +1,4 @@
+group,rows,NORMAL,MONITOR,WARNING,MAINTENANCE_ALERT,EMERGENCY_STOP,warning_or_higher,highest_decision
+overall,377,210,9,7,141,10,158,EMERGENCY_STOP
+target_0_normal,328,210,9,7,94,8,109,EMERGENCY_STOP
+target_1_anomaly,49,0,0,0,47,2,49,EMERGENCY_STOP

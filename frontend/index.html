@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PredictAgent</title>
+    <link rel="stylesheet" href="/app/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell" data-theme="dark">
+      <aside class="sidebar">
+        <div class="brand-block">
+          <div class="brand-mark" data-icon="brain"></div>
+          <div>
+            <div class="brand-name">PredictAgent</div>
+            <div class="status-line"><span></span> ESP32: Online</div>
+          </div>
+        </div>
+
+        <nav class="side-nav" aria-label="Primary">
+          <button class="nav-item active" data-page="dashboard" type="button"><span data-icon="grid"></span>Dashboard</button>
+          <button class="nav-item" data-page="alerts" type="button"><span data-icon="bell"></span>Alerts</button>
+          <button class="nav-item" data-page="analytics" type="button"><span data-icon="chart"></span>Analytics</button>
+          <button class="nav-item" data-page="insights" type="button"><span data-icon="spark"></span>Insights</button>
+          <button class="nav-item" data-page="control" type="button"><span data-icon="antenna"></span>Control</button>
+          <button class="nav-item" data-page="settings" type="button"><span data-icon="settings"></span>Settings</button>
+        </nav>
+
+        <div class="sidebar-health">
+          <div class="health-pill"><span></span> System Health: Optimal</div>
+          <div class="health-bar"><i></i></div>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div class="top-title" id="top-title">Dashboard Overview</div>
+          <div class="top-actions">
+            <label class="search">
+              <span data-icon="search"></span>
+              <input id="search-input" placeholder="Search telemetry..." />
+            </label>
+            <button class="icon-button" id="theme-toggle" type="button" title="Toggle theme"><span data-icon="sun"></span></button>
+            <button class="icon-button" id="refresh-stream-btn" type="button" title="Refresh live stream"><span data-icon="signal"></span></button>
+            <button class="icon-button" id="profile-btn" type="button" title="Open settings"><span data-icon="user"></span></button>
+          </div>
+        </header>
+
+        <section class="page active" id="dashboard">
+          <div class="motor-banner">
+            <div class="motor-id">
+              <div class="motor-icon"><span data-icon="bolt"></span></div>
+              <div>
+                <h1>Main Propulsion Motor</h1>
+                <p>Asset ID: PMA-00249 - Location: Bay 4 North</p>
+              </div>
+            </div>
+            <div class="banner-actions">
+              <span class="status-badge">NORMAL</span>
+              <button class="btn secondary" id="view-details-btn">View Details</button>
+            </div>
+          </div>
+
+          <div class="metric-grid">
+            <article class="metric-card"><div class="metric-head"><span data-icon="thermo"></span><small id="temp-trend">Live</small></div><p>Temperature</p><strong id="metric-temperature">--C</strong><div class="meter"><i id="meter-temperature" style="width:0%"></i></div></article>
+            <article class="metric-card"><div class="metric-head"><span data-icon="zap"></span><small id="current-trend">Live</small></div><p>Current</p><strong id="metric-current">--A</strong><div class="meter green"><i id="meter-current" style="width:0%"></i></div></article>
+            <article class="metric-card"><div class="metric-head"><span data-icon="sliders"></span><small id="voltage-trend">Live</small></div><p>Voltage</p><strong id="metric-voltage">--V</strong><div class="meter"><i id="meter-voltage" style="width:0%"></i></div></article>
+            <article class="metric-card"><div class="metric-head"><span data-icon="wave"></span><small id="vibration-trend">Live</small></div><p>Vibration</p><strong><span id="metric-vibration">--</span><em>mm/s</em></strong><div class="meter green"><i id="meter-vibration" style="width:0%"></i></div></article>
+            <article class="decision-card">
+              <h3><span data-icon="spark"></span>Latest Decision</h3>
+              <div class="decision-box">
+                <b id="latest-decision">Waiting for stream</b>
+                <p id="latest-reason">Start the simulator or send ESP32 rows to populate the live dashboard.</p>
+              </div>
+              <small id="latest-time">Analysed: --</small>
+            </article>
+          </div>
+
+          <div class="chart-grid">
+            <article class="panel chart-panel"><h3>Temperature (24h)</h3><canvas id="temperature-chart" height="180"></canvas></article>
+            <article class="panel chart-panel"><h3>Vibration Analysis</h3><canvas id="vibration-chart" height="180"></canvas></article>
+            <article class="panel chart-panel"><h3>Anomaly Score <span class="live-dot">Live</span></h3><canvas id="score-chart" height="180"></canvas></article>
+          </div>
+
+          <article class="asset-panel">
+            <div class="panel-title"><h3>Asset Visualization (Digital Twin)</h3><div><span data-icon="video"></span><span data-icon="layers"></span></div></div>
+            <div class="asset-image">
+              <img src="/app/assets/motor-digital-twin.png" alt="Industrial motor digital twin" />
+              <div class="asset-tags">
+                <span><i></i> Thermal Map: Active</span>
+                <span><i></i> Vibration Nodes: 4 Healthy</span>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section class="page" id="alerts">
+          <div class="section-heading"><h1>Alerts & Events</h1><p>History of motor telemetry decisions and system-driven interventions.</p></div>
+          <div class="filter-bar">
+            <label>Decision Type<select id="decision-filter"><option value="ALL">All Decisions</option><option value="EMERGENCY_STOP">Emergency Stop</option><option value="MAINTENANCE_ALERT">Maintenance Alert</option><option value="NORMAL">Normal</option></select></label>
+            <label>Date / Time Range<input value="Oct 24, 2024 - Oct 25, 2024" /></label>
+            <button class="btn secondary" id="export-csv-btn">Export CSV</button>
+            <button class="btn secondary" id="export-excel-btn">Export Excel</button>
+            <button class="btn" id="apply-filters-btn">Apply Filters</button>
+          </div>
+          <div class="summary-grid">
+            <article><span class="danger" data-icon="alert"></span><p>Critical Alerts</p><strong id="critical-count">0</strong></article>
+            <article><span class="warn" data-icon="wrench"></span><p>Maintenance Warnings</p><strong id="maintenance-count">0</strong></article>
+            <article><span class="ok" data-icon="check"></span><p>Successful Runs</p><strong id="successful-count">0</strong></article>
+          </div>
+          <article class="table-panel">
+            <table>
+              <thead><tr><th>Timestamp</th><th>Anomaly Score</th><th>Decision</th><th>Reason</th><th>Command</th><th></th></tr></thead>
+              <tbody id="events-body"></tbody>
+            </table>
+            <footer><span id="events-footer">Showing 0 entries</span> <span><button class="icon-button">&lt;</button><button class="icon-button">&gt;</button></span></footer>
+          </article>
+          <div class="split-grid">
+            <article class="panel heatmap-card"><h3>Anomaly Heatmap</h3><div class="heatmap-visual"><span>Interactive View Disabled</span></div></article>
+            <article class="prediction-card"><h3>Maintenance Prediction</h3><p id="maintenance-prediction">Waiting for stream data.</p><button class="btn schedule-btn">Schedule Inspection</button></article>
+          </div>
+        </section>
+
+        <section class="page" id="analytics">
+          <div class="section-heading with-actions"><div><h1>Behavior Analytics</h1><p>Comprehensive telemetry overview and anomaly patterns for industrial motor clusters.</p></div><button class="btn secondary">Last 7 Days</button><button class="btn" id="export-pdf-btn">Export PDF</button></div>
+          <div class="analytics-grid">
+            <article class="panel decision-counts chart-panel"><h3>Decision Counts</h3><p>Distribution of normal vs. alert states</p><canvas id="decision-chart" height="240"></canvas></article>
+            <article class="panel correlation chart-panel"><h3>Core Correlation</h3><p>Temperature (C) vs Current (A)</p><canvas id="correlation-chart" height="260"></canvas><div class="coefficient">Pearson Coefficient <b id="correlation-value">--</b></div></article>
+          </div>
+          <article class="panel heatmap-large"><div class="panel-title"><div><h3>Anomaly Density Heatmap</h3><p>Critical zone detection across daily operating cycles</p></div><div class="risk-key"><span></span><span></span><span></span><span></span><b>High Risk</b></div></div><div class="density-grid"></div></article>
+          <div class="summary-grid bottom">
+            <article class="pink-card"><span data-icon="bolt"></span><strong>Peak Utilization</strong><p>System reached 94% capacity during morning cycles. Consider staggering start-up sequences.</p></article>
+            <article><span data-icon="robot"></span><p>Model Confidence</p><strong>98.4%</strong></article>
+            <article><span class="ok" data-icon="check"></span><p>False Positives</p><strong class="green">0.02%</strong></article>
+          </div>
+        </section>
+
+        <section class="page" id="insights">
+          <div class="section-heading"><h1>Maintenance Insights</h1><p>High-precision motor telemetry analysis powered by PredictAgent AI.</p></div>
+          <div class="insights-layout">
+            <article class="agent-card">
+              <header><h2><span data-icon="spark"></span>Agent Insights</h2><span>Live Analysis</span></header>
+              <div class="agent-message">
+                <span data-icon="robot"></span>
+                <p>Analysis complete for Motor Assembly A-42.<br />"Over the last 30 minutes: vibration instability increased, high frequency energy elevated, likely mechanical wear detected."</p>
+              </div>
+              <div class="recommendation">
+                <small>AI Recommendation</small>
+                <div><span data-icon="wrench"></span><h3>Inspect bearing system.</h3><p>Targeted check of the non-drive end housing suggested within the next 48 hours.</p></div>
+              </div>
+              <footer><button class="btn secondary" id="dismiss-insight-btn">Dismiss</button><button class="btn schedule-btn">Schedule Maintenance</button></footer>
+            </article>
+            <div class="insight-side">
+              <article class="motor-photo"><img src="/app/assets/motor-digital-twin.png" alt="" /><span>System ID<br />MTR-8820-A</span></article>
+              <article class="confidence-ring"><h3>Analysis Confidence</h3><div>92%</div><p>Based on 1.2M historical samples</p></article>
+              <div class="mini-stat"><b>42C</b><span>Internal</span></div>
+              <div class="mini-stat green-mini"><b>1.8k</b><span>RPM</span></div>
+            </div>
+          </div>
+          <article class="chat-panel">
+            <div id="chat-output">Ask PredictAgent about anomaly history, maintenance risk, or current machine state.</div>
+            <form id="chat-form"><input id="chat-question" placeholder="Ask PredictAgent about system anomalies..." /><button class="btn" type="submit">Ask</button></form>
+          </article>
+        </section>
+
+        <section class="page" id="control">
+          <div class="section-heading with-status"><div><small>Manual Override</small><h1>System Control</h1></div><span class="online-badge">ESP32: Online</span></div>
+          <div class="control-grid">
+            <article class="panel command-panel">
+              <h2>Motor Commands</h2>
+              <div class="command-buttons">
+                <button class="command primary" data-command="START_MOTOR"><span data-icon="play"></span>Start Motor</button>
+                <button class="command" data-command="STOP_MOTOR"><span data-icon="stop"></span>Stop Motor</button>
+                <button class="command" data-command="RESET_ALERTS"><span data-icon="reset"></span>Reset Alerts</button>
+                <button class="command" data-command="MANUAL_MODE"><span data-icon="hand"></span>Switch to Manual Mode</button>
+              </div>
+            </article>
+            <aside class="control-side">
+              <article class="panel autopilot"><h2>Auto-Pilot Mode <label class="switch"><input id="autopilot-toggle" type="checkbox" checked /><span></span></label></h2><p>Allow the ESP32 PredictAgent AI to intervene during critical anomalies.</p></article>
+              <article class="panel stream"><h3>Real-Time Stream</h3><p>Vibration Index <b id="stream-vibration">-- mm/s</b></p><p>Temp Gradient <b id="stream-temperature">--C</b></p><p>RPM Stability <b id="stream-stability">--%</b></p></article>
+            </aside>
+          </div>
+          <article class="telemetry-hero"><img src="/app/assets/motor-digital-twin.png" alt="" /><div><h2>Telemetry Visualizer</h2><p>Access a deep-dive visual representation of all sensor inputs and predicted maintenance windows from the dashboard.</p><button class="btn secondary" id="deep-dive-btn">Open Deep-Dive</button></div></article>
+        </section>
+
+        <section class="page" id="settings">
+          <div class="settings-hero"><div class="section-heading"><h1>Tuning & Control</h1><p>Configure telemetry thresholds and communication protocols for your PredictAgent ESP32 cluster. Soft calibration ensures high precision without industrial fatigue.</p></div><img src="/app/assets/motor-digital-twin.png" alt="" /></div>
+          <div class="settings-grid">
+            <article class="panel tuning"><h2><span data-icon="sliders"></span>Threshold Tuning</h2><label>Temperature Alert Sensitivity <b id="temp-setting-value">72C</b><input id="temp-setting" type="range" value="72" min="40" max="120" /></label><label>Vibration Tolerance (mm/s) <b id="vib-setting-value">4.5</b><input id="vib-setting" type="range" value="45" min="10" max="90" /></label></article>
+            <aside class="settings-side">
+              <article class="panel autopilot"><h2>Alert Mode <label class="switch"><input id="alert-mode-toggle" type="checkbox" checked /><span></span></label></h2><p>High Precision Mode: Increases sampling rate from 1Hz to 10Hz for critical monitoring phases.</p><small>Battery drain increases by 12% in this mode.</small></article>
+              <article class="node-card"><h2>Node Status</h2><p>Firmware <b>v2.4.1-stable</b></p><p>MAC Addr <b>48:3F:DA:12:90:0C</b></p><p>Uptime <b>14d 06h 22m</b></p><button class="btn">Reboot Node</button></article>
+            </aside>
+            <article class="panel communication"><h2><span data-icon="network"></span>Communication</h2><div class="form-grid"><label>MQTT Broker URL<input id="mqtt-setting" value="mqtt://broker.predictagent.io:1883" /></label><label>Client Identity<input id="client-setting" value="ESP32_NODE_ALPHA_01" /></label><label>Email Destination<input id="email-setting" value="alerts@company.com" /></label><label>Telegram Chat ID<input id="telegram-setting" value="@predict_alerts_bot" /></label></div></article>
+          </div>
+          <div class="save-bar"><span id="settings-status">Last configuration sync: 4 minutes ago</span><button class="btn secondary" id="discard-settings-btn">Discard Changes</button><button class="btn" id="save-settings-btn">Save Configuration</button></div>
+        </section>
+
+        <footer class="footer"><b>PredictAgent</b><span>(c) 2024 PredictAgent Monitoring</span><nav><a>Privacy Policy</a><a>Terms of Service</a><a>Support</a></nav></footer>
+      </main>
+    </div>
+    <script src="/app/app.js"></script>
+  </body>
+</html>

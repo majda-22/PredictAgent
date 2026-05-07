@@ -1,0 +1,14 @@
+.env
+venv/
+__pycache__/
+*.py[cod]
+.git/
+.gitignore
+notebooks/
+data/raw/
+runtime/
+motor_events.db
+frontend_server_*.log
+*.log
+reports/agent/*.pdf
+reports/agent/*.md

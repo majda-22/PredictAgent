@@ -1,0 +1,73 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: predictagent-api
+    env_file:
+      - .env
+    environment:
+      MOTOR_EVENTS_DB: /app/runtime/motor_events.db
+      MQTT_HOST: mqtt
+      MQTT_PORT: 1883
+      MQTT_TOPIC: motor/commands
+      MQTT_SENSOR_TOPIC: motor/sensors
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./runtime:/app/runtime
+      - ./reports:/app/reports
+    depends_on:
+      mqtt:
+        condition: service_started
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5).read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  mqtt:
+    image: eclipse-mosquitto:2
+    container_name: predictagent-mqtt
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto-data:/mosquitto/data
+      - mosquitto-log:/mosquitto/log
+    restart: unless-stopped
+
+  simulator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    profiles:
+      - tools
+    env_file:
+      - .env
+    environment:
+      MOTOR_EVENTS_DB: /app/runtime/motor_events.db
+    volumes:
+      - ./runtime:/app/runtime
+      - ./reports:/app/reports
+    depends_on:
+      api:
+        condition: service_healthy
+    command:
+      - python
+      - -m
+      - src.simulation.stream_sensor_data
+      - --url
+      - http://api:8000/predict-raw
+      - --mode
+      - maintenance
+      - --rows
+      - "80"
+      - --delay
+      - "0.5"
+
+volumes:
+  mosquitto-data:
+  mosquitto-log:
