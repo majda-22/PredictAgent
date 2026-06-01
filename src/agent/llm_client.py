@@ -12,8 +12,10 @@ load_env()
 
 RESPONSES_URL = "https://api.openai.com/v1/responses"
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+DEFAULT_OLLAMA_BASE_URL = "http://127.0.0.1:11434"
 DEFAULT_MODEL = "gpt-4.1-mini"
 DEFAULT_OPENROUTER_MODEL = "qwen/qwen3-next-80b-a3b-instruct:free"
+DEFAULT_OLLAMA_MODEL = "llama3.1"
 
 
 class LLMClient:
@@ -26,6 +28,7 @@ class LLMClient:
         self.provider = os.getenv("LLM_PROVIDER", "openai").lower()
         self.api_key = api_key or self._api_key_from_env()
         self.model = model or self._model_from_env()
+        self.ollama_base_url = os.getenv("OLLAMA_BASE_URL", DEFAULT_OLLAMA_BASE_URL).rstrip("/")
         self.enabled = (
             enabled
             if enabled is not None
@@ -34,21 +37,29 @@ class LLMClient:
 
     @property
     def available(self) -> bool:
+        if self.provider == "ollama":
+            return self.enabled
         return bool(self.enabled and self.api_key)
 
     def complete(self, *, instructions: str, input_text: str) -> str:
         if not self.available:
             return ""
+        if self.provider == "ollama":
+            return self._complete_ollama(instructions=instructions, input_text=input_text)
         if self.provider == "openrouter":
             return self._complete_openrouter(instructions=instructions, input_text=input_text)
         return self._complete_openai(instructions=instructions, input_text=input_text)
 
     def _api_key_from_env(self) -> str | None:
+        if self.provider == "ollama":
+            return None
         if self.provider == "openrouter":
             return os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY")
         return os.getenv("OPENAI_API_KEY")
 
     def _model_from_env(self) -> str:
+        if self.provider == "ollama":
+            return os.getenv("OLLAMA_MODEL", DEFAULT_OLLAMA_MODEL)
         if self.provider == "openrouter":
             return (
                 os.getenv("OPENROUTER_MODEL")
@@ -104,6 +115,29 @@ class LLMClient:
         data = response.json()
         return extract_chat_completion_text(data)
 
+    def _complete_ollama(self, *, instructions: str, input_text: str) -> str:
+        try:
+            response = requests.post(
+                f"{self.ollama_base_url}/api/chat",
+                json={
+                    "model": self.model,
+                    "messages": [
+                        {"role": "system", "content": instructions},
+                        {"role": "user", "content": input_text},
+                    ],
+                    "stream": False,
+                    "options": {
+                        "temperature": 0.2,
+                    },
+                },
+                timeout=float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "120")),
+            )
+            response.raise_for_status()
+        except RequestException as exc:
+            raise LLMRequestError(str(exc)) from exc
+        data = response.json()
+        return extract_ollama_chat_text(data)
+
     def complete_json(self, *, instructions: str, input_data: dict[str, Any]) -> dict[str, Any]:
         try:
             text = self.complete(
@@ -117,6 +151,12 @@ class LLMClient:
         try:
             return json.loads(text)
         except json.JSONDecodeError:
+            json_text = extract_json_object(text)
+            if json_text:
+                try:
+                    return json.loads(json_text)
+                except json.JSONDecodeError:
+                    pass
             return {"raw_text": text}
 
 
@@ -151,3 +191,17 @@ def extract_chat_completion_text(response: dict[str, Any]) -> str:
             if isinstance(item, dict)
         ).strip()
     return str(content).strip()
+
+
+def extract_ollama_chat_text(response: dict[str, Any]) -> str:
+    message = response.get("message", {})
+    content = message.get("content", "")
+    return str(content).strip()
+
+
+def extract_json_object(text: str) -> str:
+    start = text.find("{")
+    end = text.rfind("}")
+    if start == -1 or end == -1 or end <= start:
+        return ""
+    return text[start : end + 1]

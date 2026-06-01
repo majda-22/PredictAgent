@@ -392,6 +392,48 @@ async function sendCommand(command) {
   }
 }
 
+async function runManualPrediction(event) {
+  event.preventDefault();
+  const resultNode = document.getElementById("manual-result");
+  resultNode.className = "manual-result";
+  resultNode.innerHTML = "<b>Analysing motor state...</b><span>Running manual prediction.</span>";
+
+  const payload = {
+    timestamp: new Date().toISOString(),
+    temperature: Number(document.getElementById("manual-temperature").value),
+    current: Number(document.getElementById("manual-current").value),
+    voltage: Number(document.getElementById("manual-voltage").value),
+    vibration: Number(document.getElementById("manual-vibration").value),
+    speed_rpm: Number(document.getElementById("manual-speed").value),
+    ambient_temperature: Number(document.getElementById("manual-ambient").value),
+  };
+
+  try {
+    const response = await fetch("/predict-manual", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) throw new Error(`Manual prediction failed: ${response.status}`);
+    const data = await response.json();
+    const className = data.decision === "EMERGENCY_STOP"
+      ? "manual-result danger"
+      : data.decision === "MAINTENANCE_ALERT" || data.decision === "WARNING"
+        ? "manual-result warn"
+        : "manual-result";
+    resultNode.className = className;
+    resultNode.innerHTML = `
+      <b>${data.decision}</b>
+      <span>Score ${Number(data.score).toFixed(5)} / threshold ${Number(data.threshold).toFixed(5)} - command ${data.command}</span>
+      <span>${data.reason}</span>
+      <span>Regime ${data.regime}${data.sub_regime !== null ? `.${data.sub_regime}` : ""}. Manual test only: no MQTT command was published.</span>
+    `;
+  } catch (error) {
+    resultNode.className = "manual-result danger";
+    resultNode.innerHTML = "<b>Prediction unavailable</b><span>Start the FastAPI server and try again.</span>";
+  }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   renderIcons();
   const savedTheme = localStorage.getItem("predictagent-theme") || "dark";
@@ -465,6 +507,7 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".command").forEach((button) => {
     button.addEventListener("click", () => sendCommand(button.dataset.command));
   });
+  document.getElementById("manual-predict-form").addEventListener("submit", runManualPrediction);
 
   window.addEventListener("resize", drawDashboard);
   loadSettings();

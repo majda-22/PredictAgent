@@ -18,7 +18,7 @@ The project also includes MQTT command publishing, Telegram/email alerts, LLM-as
 - Publishes motor commands through MQTT.
 - Stores events in SQLite for dashboard history and analysis.
 - Generates reports and sends Telegram/email alerts.
-- Uses an LLM provider, OpenAI or OpenRouter, for short maintenance reasoning when configured.
+- Uses a local Ollama LLM by default, with optional OpenAI or OpenRouter support, for short maintenance reasoning.
 - Provides a dark/light web dashboard with live charts, alerts, analytics, insights, control, and settings pages.
 
 ## Project Structure
@@ -70,10 +70,10 @@ SMTP_USE_TLS=true
 ALERT_EMAIL_FROM=
 ALERT_EMAIL_TO=
 
-LLM_PROVIDER=openrouter
+LLM_PROVIDER=ollama
 LLM_ENABLED=true
-OPENROUTER_API_KEY=
-OPENROUTER_MODEL=qwen/qwen3-next-80b-a3b-instruct:free
+OLLAMA_BASE_URL=http://127.0.0.1:11434
+OLLAMA_MODEL=llama3.1
 
 MQTT_ENABLED=true
 MQTT_HOST=127.0.0.1
@@ -92,6 +92,12 @@ Start Docker Desktop, then run:
 
 ```powershell
 docker compose up --build -d
+```
+
+Pull the local Ollama model once:
+
+```powershell
+docker exec predictagent-ollama ollama pull llama3.1
 ```
 
 Open the frontend:
@@ -222,5 +228,6 @@ All labeled anomalies in the old validation dataset were escalated to at least `
 ## Notes
 
 - The LangGraph deprecation warning shown during agent runs is not a runtime failure.
+- Ollama must have the configured `OLLAMA_MODEL` pulled before LLM reasoning can run.
 - OpenRouter `429 Too Many Requests` means the LLM key is configured but the provider rate-limited the request.
 - Docker requires Docker Desktop’s Linux engine to be running before `docker compose up --build -d`.

@@ -332,6 +332,66 @@ def _score_regime_row(feature_frame: pd.DataFrame) -> tuple[int, int | None, flo
     return regime, None, score, threshold
 
 
+def _manual_prediction(request: RawSensorRequest) -> RawPredictionResponse:
+    vibration = _raw_vibration_magnitude(request)
+    speed_hz = request.speed_hz if request.speed_hz is not None else request.speed_rpm / 60.0
+    manual_mapper = ESP32FeatureMapper(
+        buffer_size=REDUCED_RAW_WINDOW_SIZE,
+        vib_scaler=artifacts.vib_scaler,
+        ratio_clip_bounds=artifacts.reduced_ratio_clip_bounds,
+    )
+    features: dict[str, float] = {}
+    for _ in range(REDUCED_RAW_WINDOW_SIZE):
+        features = manual_mapper.map(
+            current=request.current,
+            voltage=request.voltage,
+            temp_mot=request.temperature,
+            temp_amb=request.ambient_temperature,
+            speed_rpm=request.speed_rpm,
+            speed_hz=speed_hz,
+            vibration=vibration,
+        )
+
+    feature_frame = pd.DataFrame(
+        [[features[column] for column in artifacts.reduced_feature_columns]],
+        columns=artifacts.reduced_feature_columns,
+    )
+    regime, sub_regime, score, threshold = _score_regime_row(feature_frame)
+    policy_features = _reduced_features_for_policy(features)
+    if regime == 1 and sub_regime is not None:
+        maintenance_alert_count = REGIME1_COUNTER_THRESHOLDS.get(sub_regime, 7)
+    else:
+        maintenance_alert_count = REGIME_COUNTER_THRESHOLDS.get(regime, 5)
+    decision = make_decision(
+        score=score,
+        threshold=threshold,
+        consecutive_anomaly_count=0,
+        features=policy_features,
+        maintenance_alert_count=maintenance_alert_count,
+    )
+    return RawPredictionResponse(
+        buffer_ready=True,
+        buffer_size=REDUCED_RAW_WINDOW_SIZE,
+        regime=regime,
+        sub_regime=sub_regime,
+        score=score,
+        threshold=threshold,
+        is_anomaly=score < threshold,
+        consecutive_anomalies=decision.consecutive_anomaly_count,
+        decision=decision.state.value,
+        reason=decision.reason,
+        command=COMMANDS[decision.state],
+        event_id=None,
+        mqtt_published=False,
+        mqtt_error=None,
+        live_alert_status={
+            "sent": False,
+            "queued": False,
+            "detail": "Manual prediction only; no event stored and no MQTT command published.",
+        },
+    )
+
+
 def _record_and_publish_raw_event(
     request: RawSensorRequest,
     vibration: float,
@@ -829,3 +889,8 @@ def predict_raw(request: RawSensorRequest, background_tasks: BackgroundTasks) ->
         mqtt_error=mqtt_error,
         live_alert_status=stream_alert_status,
     )
+
+
+@app.post("/predict-manual", response_model=RawPredictionResponse)
+def predict_manual(request: RawSensorRequest) -> RawPredictionResponse:
+    return _manual_prediction(request)

@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: predictagent-demo
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: MOTOR_EVENTS_DB
+        value: /tmp/motor_events.db
+      - key: LLM_ENABLED
+        value: "false"
+      - key: LLM_PROVIDER
+        value: ollama
+      - key: MQTT_ENABLED
+        value: "false"
+      - key: MQTT_HOST
+        value: 127.0.0.1
+      - key: MQTT_PORT
+        value: "1883"
+      - key: MQTT_TOPIC
+        value: motor/commands
+      - key: MQTT_SENSOR_TOPIC
+        value: motor/sensors
+      - key: STREAM_ALERT_SUCCESSIVE_MAINTENANCE_THRESHOLD
+        value: "10"
+      - key: STREAM_ALERT_COOLDOWN_SECONDS
+        value: "600"

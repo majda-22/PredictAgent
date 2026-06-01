@@ -8,6 +8,10 @@ services:
       - .env
     environment:
       MOTOR_EVENTS_DB: /app/runtime/motor_events.db
+      LLM_PROVIDER: ollama
+      LLM_ENABLED: true
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_MODEL: llama3.1
       MQTT_HOST: mqtt
       MQTT_PORT: 1883
       MQTT_TOPIC: motor/commands
@@ -19,6 +23,8 @@ services:
       - ./reports:/app/reports
     depends_on:
       mqtt:
+        condition: service_started
+      ollama:
         condition: service_started
     restart: unless-stopped
     healthcheck:
@@ -37,6 +43,15 @@ services:
       - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - mosquitto-data:/mosquitto/data
       - mosquitto-log:/mosquitto/log
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: predictagent-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
     restart: unless-stopped
 
   simulator:
@@ -69,5 +84,6 @@ services:
       - "0.5"
 
 volumes:
+  ollama-data:
   mosquitto-data:
   mosquitto-log:
